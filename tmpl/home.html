@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      table, th, td {
+        border: 1px solid black;
+        border-collapse: collapse;
+      }
+      td {
+        padding: 10px;
+      }
+      th {
+        padding: 15px;
+        text-align: left; 
+      }
+      #queryin {
+        font-size: 1em;
+      }
+      #query {
+        padding: 20px;
+      }
+      #display {
+        margin: 20px;
+      }
+      label {
+        width:180px;
+        clear:left;
+        text-align:right;
+        padding-right:10px;
+      }
+      input, label {
+        float:left;
+      }
+      input.trade {
+        float:none;
+      }
+      hr {
+        margin-bottom: 20px; 
+        margin-top: 20px; 
+      }
+    </style>
+  </head>
+  <body>
+    <h1> List of all the scripts </h1>
+    <div id="query">
+      <h3> Run Query </h3>
+      <form action="/" method="POST">
+        <div><input type="text" name="query" id="queryin" size="100" placeholder="Enter your query"> </div>
+        <div><input type="submit" style="display:none"></div>
+      </form>
+    </div>
+    <hr>
+    <div id="display">
+      <h3> Show Results </h3>
+      <table>
+        <tr>
+          <th> User </th>
+          <th> Date </th>
+          <th> Company </th>
+          <th> Trade </th>
+          <th> Quantity </th>
+          <th> Price </th>
+          <th> Invested Value </th>
+          <th> Current_Price </th>
+          <th> Current Value </th>
+          <th> Profit or Loss </th>
+        </tr>
+        {{ range $key, $value := . }}
+        <tr>
+          <td>{{ printf "%s" $value.User}} </td>
+          <td>{{ printf "%s" $value.DisplayDate }} </td>
+          <td>{{ printf "%s" $value.Company }} </td>
+          <td>{{ if ($value.Trade) }} Bought {{ else }} Sold {{end}} </td>
+          <td>{{ printf "%d" $value.Quantity }} </td>
+          <td>{{ printf "%0.2f" $value.Price }} </td>
+          <td>{{ printf "%0.2f" $value.TotalValue}} </td>
+          <td>{{ printf "%0.2f" $value.CurrentPrice}} </td>
+          <td>{{ printf "%0.2f" $value.CurrentTotalValue}} </td>
+          <td>{{ printf "%0.2f" $value.Difference}} </td>
+        </tr>
+        {{ end }}
+      </table>
+    </div>
+    <hr>
+    <div id="add_scripts">
+      <h3> Add Scripts </h3>
+      <form action="/" method="POST">
+        <label for="user"> User: </label>
+        <input type="text" id="user" name="user"><br>
+        <label for="company"> NSESymbol: </label>
+        <input type="text" id="nse" name="nse"><br>
+        <label for="company"> Company: </label>
+        <input type="text" id="company" name="company"><br>
+        <label for="price"> Price: </label>
+        <input type="number" step="0.01" id="price" name="price"><br>
+        <label for="quantity"> Quantity: </label>
+        <input type="number" id="quantity" name="quantity"><br><br>
+        <label for="trade"> Trade: </label>
+        <input type="radio" class="trade" name="trade" id="trade" value="1" checked>Buy
+        <input type="radio" class="trade" name="trade" value="0">Sell
+        <input type="hidden"  name="type" value="addScript">               
+        <br>
+        <input type="submit" style="margin-left:210px; margin-top:20px" value="Add">
+      </form>
+    </div>
+  </body>
+</html>
