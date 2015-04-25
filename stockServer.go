@@ -10,6 +10,17 @@ import (
 )
 
 var templates = template.Must(template.ParseGlob("tmpl/*.html"))
+var FuncMap = template.FuncMap{
+	"gt": func(a, b float32) bool {
+		return float32(a) > float32(b)
+	},
+	"lt": func(a, b float32) bool {
+		return float32(a) < float32(b)
+	},
+	"eq": func(a, b interface{}) bool {
+		return a == b
+	},
+}
 
 func renderTemplate(w http.ResponseWriter, path string, scripts []sqlAdapter.Stock) {
 	t, err := template.ParseFiles("tmpl/" + path + ".html")
@@ -28,6 +39,9 @@ func LaterrenderTemplate(w http.ResponseWriter, path string, scripts []sqlAdapte
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
+func homePageRedirectHandler(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, "/stocks", http.StatusFound)
+}
 func homeHandler(w http.ResponseWriter, r *http.Request) {
 	var query string
 	if r.FormValue("type") == "addScript" {
@@ -41,24 +55,25 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 			query = fmt.Sprintf("insert into scripts (user, nse, bse, company, quantity, trade, date, price, current_price)  values (\"%s\", \"%s\", \"%s\", \"%s\", %s, %s, NOW(), %s, %s);", user, nse, "", company, quantity, trade, price, "1")
 			sqlAdapter.ExecuteQuery(query)
 		}
-		query = "SELECT * FROM scripts"
-		renderTemplate(w, "home", sqlAdapter.GetAllScripts(query))
+		query = "SELECT * FROM scripts order by nse"
+		renderTemplate(w, "home", sqlAdapter.GetAllScripts(query, false))
 	} else if len(r.FormValue("query")) != 0 {
 		query := r.FormValue("query")
 		if len(query) == 0 {
-			query = "SELECT * FROM scripts"
+			query = "SELECT * FROM scripts order by nse"
 		}
 		if !(strings.ToUpper(strings.Fields(query)[0]) == "SELECT") {
 			sqlAdapter.ExecuteQuery(query)
 		}
-		renderTemplate(w, "home", sqlAdapter.GetAllScripts(query))
+		renderTemplate(w, "home", sqlAdapter.GetAllScripts(query, true))
 	} else {
-		query = "SELECT * FROM scripts"
-		renderTemplate(w, "home", sqlAdapter.GetAllScripts(query))
+		query = "SELECT * FROM scripts order by nse"
+		renderTemplate(w, "home", sqlAdapter.GetAllScripts(query, true))
 	}
 }
 func attachHandlers() {
-	http.HandleFunc("/", homeHandler)
+	http.HandleFunc("/stocks", homeHandler)
+	http.HandleFunc("/", homePageRedirectHandler)
 }
 func RunServer() {
 	attachHandlers()
@@ -69,6 +84,8 @@ func RunServer() {
 }
 func main() {
 	sqlAdapter.ConnectDB()
+	//sqlAdapter.GetCurrentPriceAll()
+	templates.Funcs(FuncMap)
 	RunServer()
 	defer sqlAdapter.CloseDB()
 }

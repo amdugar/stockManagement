@@ -1,10 +1,37 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
     <style>
       table, th, td {
         border: 1px solid black;
         border-collapse: collapse;
+      }
+      td.profit {
+        color: green;
+        font-weight: bold;
+      }
+      td.loss {
+        color: red;
+        font-weight: bold;
+      }
+      a.addScript {
+      
+      }
+      tr.sumtotal {
+        background-color: rgb(155, 155, 242); 
+      }
+      tr.total {
+        background-color: rgb(247, 247, 153); 
+      }
+      tr.sell {
+        background-color: rgb(247, 147, 147); 
+      }
+      tr.buy {
+        background-color: rgb(153, 244, 153); 
+      }
+      tr.head {
+        background-color: rgb(211, 209, 209); 
       }
       td {
         padding: 10px;
@@ -31,6 +58,9 @@
       input, label {
         float:left;
       }
+      input.user{
+        float:none;
+      }
       input.trade {
         float:none;
       }
@@ -44,7 +74,7 @@
     <h1> List of all the scripts </h1>
     <div id="query">
       <h3> Run Query </h3>
-      <form action="/" method="POST">
+      <form action="/stocks" method="POST">
         <div><input type="text" name="query" id="queryin" size="100" placeholder="Enter your query"> </div>
         <div><input type="submit" style="display:none"></div>
       </form>
@@ -53,9 +83,10 @@
     <div id="display">
       <h3> Show Results </h3>
       <table>
-        <tr>
+        <tr class="head">
           <th> User </th>
           <th> Date </th>
+          <th> NSE </th>
           <th> Company </th>
           <th> Trade </th>
           <th> Quantity </th>
@@ -66,17 +97,39 @@
           <th> Profit or Loss </th>
         </tr>
         {{ range $key, $value := . }}
-        <tr>
+        <tr 
+        {{ if eq $value.Trade 0 }} 
+        class="sell"
+        {{ else if eq $value.Trade 1 }} 
+        class="buy"
+        {{ else if eq $value.Trade 2 }} 
+        class="total"
+        {{ else if eq $value.Trade 3 }} 
+        class="sumtotal" 
+        {{end}}>
           <td>{{ printf "%s" $value.User}} </td>
           <td>{{ printf "%s" $value.DisplayDate }} </td>
-          <td>{{ printf "%s" $value.Company }} </td>
-          <td>{{ if ($value.Trade) }} Bought {{ else }} Sold {{end}} </td>
+          <td onclick="submit_id(this)"><a href="#addScripts" class="addScript" > {{ printf "%s" $value.NSEName }} </a></td>
+          <td> {{ printf "%s" $value.Company }} </td>
+          <td>{{ if eq 1 $value.Trade }} Bought {{ else if eq 0 $value.Trade}} Sold {{ else }} {{end}} </td>
           <td>{{ printf "%d" $value.Quantity }} </td>
           <td>{{ printf "%0.2f" $value.Price }} </td>
           <td>{{ printf "%0.2f" $value.TotalValue}} </td>
           <td>{{ printf "%0.2f" $value.CurrentPrice}} </td>
           <td>{{ printf "%0.2f" $value.CurrentTotalValue}} </td>
-          <td>{{ printf "%0.2f" $value.Difference}} </td>
+          <td 
+            {{ if gt $value.Difference 0.0 }}
+            class="profit"
+            {{ else if lt $value.Difference 0.0 }}
+            class="loss"
+            {{ end }} >
+          {{ printf "%0.2f" $value.Difference}} 
+          {{ if gt $value.Difference 0.0 }}
+          &#11014
+          {{ else if lt $value.Difference 0.0 }}
+          &#11015
+          {{ end }}
+          </td>
         </tr>
         {{ end }}
       </table>
@@ -84,9 +137,11 @@
     <hr>
     <div id="add_scripts">
       <h3> Add Scripts </h3>
-      <form action="/" method="POST">
+      <a name="addScripts"> </a>
+      <form action="/stocks" method="POST">
         <label for="user"> User: </label>
-        <input type="text" id="user" name="user"><br>
+        <input type="radio" class="user" name="user" id="user" value="varsha" checked>Varsha
+        <input type="radio" class="user" name="user" value="amit">Amit <br>
         <label for="company"> NSESymbol: </label>
         <input type="text" id="nse" name="nse"><br>
         <label for="company"> Company: </label>
@@ -104,4 +159,19 @@
       </form>
     </div>
   </body>
+  <script>
+    $(document).ready(function() {
+      $('.addScript').on('click', function(e) {   
+        console.log(e);
+      });
+      submit_id = function (tableRow) {
+        var tds = $(tableRow).parent().find("td");
+        var nse = tds[2].innerText;
+        var company = tds[3].innerText;
+        $('#nse').val(nse);
+        $('#company').val(company);
+        $('#price').focus()
+      };
+    });
+  </script>
 </html>

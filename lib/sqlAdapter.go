@@ -11,9 +11,10 @@ import (
 )
 
 const (
-	All = iota
+	Sell = iota
 	Buy
-	Sell
+	Total
+	SumTotal
 )
 
 type Stock struct {
@@ -21,7 +22,7 @@ type Stock struct {
 	BSEName           string    `bse`
 	Company           string    `company`
 	Quantity          uint32    `quantity`
-	Trade             uint8     `trade`
+	Trade             int8      `trade`
 	Date              time.Time `date`
 	Price             float32   `price`
 	DisplayDate       string    `display`
@@ -48,16 +49,81 @@ func ConnectDB() {
 func CloseDB() {
 	db.Close()
 }
-func GetCurrentPrice(price *float32, symbol string) {
+func getCurrentPrice(symbol string) float32 {
 	var temp float64
 	doc, err := goquery.NewDocument("https://in.finance.yahoo.com/q?s=" + symbol + ".BO")
 	if err != nil {
 		log.Fatal(err)
 	}
 	temp, err = strconv.ParseFloat(doc.Find(".time_rtq_ticker").Text(), 32)
-	*price = float32(temp)
+	return float32(temp)
 }
-func getSlice(rows *sql.Rows) []Stock {
+func sumUpByCompany(scripts []Stock) []Stock {
+	var sum_total Stock
+	var total_current Stock
+	total := []Stock{}
+
+	sum_total.Trade = SumTotal
+	sum_total.User = "Sum Total"
+	total_current.NSEName = ""
+	total_current.Trade = Total
+
+	for _, value := range scripts {
+		if len(total) != 0 && value.NSEName != total[len(total)-1].NSEName {
+			total = append(total, total_current)
+			total_current.Quantity = 0
+			total_current.TotalValue = 0.0
+			total_current.CurrentTotalValue = 0.0
+		}
+		total = append(total, value)
+		total_current.User = "total"
+		total_current.NSEName = value.NSEName
+		total_current.BSEName = value.BSEName
+		total_current.Company = value.Company
+		total_current.CurrentPrice = value.CurrentPrice
+		if value.Trade == Buy {
+			total_current.Quantity = total_current.Quantity + value.Quantity
+		} else if value.Trade == Sell {
+			total_current.Quantity = total_current.Quantity - value.Quantity
+		}
+		total_current.TotalValue += value.Price * float32(value.Quantity)
+		total_current.CurrentTotalValue += value.CurrentPrice * float32(value.Quantity)
+		total_current.Difference = total_current.CurrentTotalValue - total_current.TotalValue
+		total_current.Price = total_current.TotalValue / float32(total_current.Quantity)
+		sum_total.TotalValue += value.Price * float32(value.Quantity)
+		sum_total.CurrentTotalValue += value.CurrentPrice * float32(value.Quantity)
+	}
+	sum_total.Difference = sum_total.CurrentTotalValue - sum_total.TotalValue
+	total = append(total, total_current)
+	total = append(total, sum_total)
+	return total
+}
+func GetCurrentPriceAll() {
+	var script_name string
+	rows, err := db.Query("select distinct nse from scripts;")
+	if err != nil {
+		log.Fatal(err)
+	}
+	for rows.Next() {
+		err := rows.Scan(&script_name)
+		price := getCurrentPrice(script_name)
+		update_current_price_query := fmt.Sprintf("update scripts set current_price=%.02f where nse=\"%s\";", price, script_name)
+		ExecuteQuery(update_current_price_query)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	if err != nil {
+		log.Fatal("Error getting rows for allScripts")
+	}
+	err = rows.Err()
+	if err != nil {
+		log.Fatal(err)
+	}
+	rows.Close()
+	defer rows.Close()
+}
+func getSlice(rows *sql.Rows, total bool) []Stock {
 	scripts := []Stock{}
 	var current_script Stock
 	for rows.Next() {
@@ -75,7 +141,7 @@ func getSlice(rows *sql.Rows) []Stock {
 			log.Fatal(err)
 		}
 		tempTime := current_script.Date
-		GetCurrentPrice(&current_script.CurrentPrice, current_script.NSEName)
+		//GetCurrentPrice(&current_script.CurrentPrice, current_script.NSEName)
 
 		current_script.DisplayDate = fmt.Sprintf("%d/%d/%d", tempTime.Day(), tempTime.Month(), tempTime.Year())
 		current_script.TotalValue = current_script.Price * float32(current_script.Quantity)
@@ -89,14 +155,17 @@ func getSlice(rows *sql.Rows) []Stock {
 	}
 	rows.Close()
 	defer rows.Close()
+	if total {
+		return sumUpByCompany(scripts)
+	}
 	return scripts
 }
-func GetAllScripts(query string) []Stock {
+func GetAllScripts(query string, total bool) []Stock {
 	rows, err := db.Query(query)
 	if err != nil {
 		log.Fatal("Error getting rows for allScripts")
 	}
-	allScripts := getSlice(rows)
+	allScripts := getSlice(rows, total)
 	return allScripts
 }
 func ExecuteQuery(query string) {
