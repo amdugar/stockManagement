@@ -6,7 +6,9 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	_ "github.com/go-sql-driver/mysql"
 	"log"
+	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -49,14 +51,47 @@ func ConnectDB() {
 func CloseDB() {
 	db.Close()
 }
+func GetCurrentPrice(symbol string) float32 {
+	return getCurrentPrice(symbol)
+}
 func getCurrentPrice(symbol string) float32 {
-	var temp float64
-	doc, err := goquery.NewDocument("https://in.finance.yahoo.com/q?s=" + symbol + ".BO")
+	var lastPrice string
+	var price float64
+	url := "http://nseindia.com/live_market/dynaContent/live_watch/get_quote/GetQuote.jsp?symbol=" + symbol + "&illiquid=0&smeFlag=0&itpFlag=0"
+	fmt.Println(url)
+	//url := "http://httpbin.org/user-agent"
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	req.Header.Set("User-Agent", "Mozilla")
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	doc, err := goquery.NewDocumentFromResponse(resp)
 	if err != nil {
 		log.Fatal(err)
+		return 0.0
 	}
-	temp, err = strconv.ParseFloat(doc.Find(".time_rtq_ticker").Text(), 32)
-	return float32(temp)
+	data := doc.Find("#responseDiv").Text()
+	a := strings.Split(data, "\"")
+	for i, _ := range a {
+		if a[i] == "lastPrice" {
+			lastPrice = strings.Replace(a[i+2], ",", "", -1)
+			break
+		}
+	}
+	price, err = strconv.ParseFloat(lastPrice, 64)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	return float32(price)
 }
 func sumUpByCompany(scripts []Stock) []Stock {
 	var sum_total Stock

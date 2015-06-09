@@ -55,6 +55,7 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 			query = fmt.Sprintf("insert into scripts (user, nse, bse, company, quantity, trade, date, price, current_price)  values (\"%s\", \"%s\", \"%s\", \"%s\", %s, %s, NOW(), %s, %s);", user, nse, "", company, quantity, trade, price, "1")
 			sqlAdapter.ExecuteQuery(query)
 		}
+		sqlAdapter.GetCurrentPriceAll()
 		query = "SELECT * FROM scripts order by nse"
 		renderTemplate(w, "home", sqlAdapter.GetAllScripts(query, false))
 	} else if len(r.FormValue("query")) != 0 {
@@ -84,7 +85,7 @@ func RunServer() {
 }
 func main() {
 	sqlAdapter.ConnectDB()
-	//sqlAdapter.GetCurrentPriceAll()
+	sqlAdapter.GetCurrentPriceAll()
 	templates.Funcs(FuncMap)
 	RunServer()
 	defer sqlAdapter.CloseDB()
