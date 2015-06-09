@@ -5,7 +5,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
-	"stockManagement/lib"
+	"github.com/amdugar/stockManagement/lib"
 	"strings"
 )
 
